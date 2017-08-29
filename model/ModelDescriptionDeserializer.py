@@ -2,51 +2,92 @@
 import json
 import model.ModelSchema as Schema
 
-def getArchitectureSectionBegin():
-    return 0
+def anyNonZeros(entry, begin, end):
+    return np.any(entry[begin:end] != 0.0)
 
-def getArchitectureSectionEnd():
-    return getArchitectureSectionBegin() + len(Schema.ARCHITECTURES)
-
-def getProblemTypesSectionBegin():
-    return getArchitectureSectionEnd()
-
-def getProblemTypesSectionEnd():
-    return getProblemTypesSectionBegin + len(Schema.PROBLEM_TYPES)
+def argmaxEntry(entry, begin, end):
+    return np.argmax(entry[begin:end])
 
 def isArchitectureEntry(entry):
-    return anyNonZeros(entry, getArchitectureSectionBegin(), getArchitectureSectionEnd())
+    return anyNonZeros(entry,
+        Schema.getArchitectureSectionBegin(),
+        Schema.getArchitectureSectionEnd())
 
 def getArchitectureEntry(entry):
-    index = argmaxEntry(entry, getArchitectureSectionBegin(), getArchitectureSectionEnd())
-    microArchitectureIndex = argmaxEntry(entry, getMicroArchitectureSectionBegin(),
-        getMicroArchitectureSectionEnd())
+    index = argmaxEntry(entry, Schema.getArchitectureSectionBegin(), Schema.getArchitectureSectionEnd())
+    microArchitectureIndex = argmaxEntry(entry, Schema.getMicroArchitectureSectionBegin(),
+        Schema.getMicroArchitectureSectionEnd())
 
     return { "architecture" : getNameForIndex(Schema.ARCHITECTURES, index),
              "micro-architecture" : getNameForIndex(Schema.MICROARCHITECTURES, index) }
 
 def isProblemTypeEntry(entry):
-    return anyNonZeros(entry, getProblemTypesSectionBegin(), getProblemTypesSectionEnd())
+    return anyNonZeros(entry,
+                       Schema.getProblemTypesSectionBegin(),
+                       Schema.getProblemTypesSectionEnd())
 
 def getProblemType(entry):
-    index = argmaxEntry(entry, getProblemTypesSectionBegin(), getProblemTypesSectionEnd())
+    index = argmaxEntry(entry,
+                        Schema.getProblemTypesSectionBegin(),
+                        Schema.getProblemTypesSectionEnd())
 
     return getNameForIndex(Schema.PROBLEM_TYPES, index)
 
 def isInputFormatEntry(entry):
-    return anyNonZeros(entru, getInputFormatSectionBegin(), getInputFormatSectionEnd())
+    return anyNonZeros(entru,
+                       Schema.getInputFormatSectionBegin(),
+                       Schema.getInputFormatSectionEnd())
 
 def getInputFormat(entry):
-    return getFormat(entry, getInputFormatSectionBegin())
+    return getFormat(entry, Schema.getInputFormatSectionBegin())
 
 def isOutputFormatEntry(entry):
-    return anyNonZeros(entru, getOutputFormatSectionBegin(), getOutputFormatSectionEnd())
+    return anyNonZeros(entry,
+                       Schema.getOutputFormatSectionBegin(),
+                       Schema.getOutputFormatSectionEnd())
 
 def getOutputFormat(entry):
-    return getFormat(entry, getOutputFormatSectionBegin())
+    return getFormat(entry, Schema.getOutputFormatSectionBegin())
+
+def getFormat(entry, offset):
+    dimensionIndex = argmaxEntry(entry, offset, offset + len(Schema.FORMAT_DIMENSIONS))
+
+    dimensions = int(getNameForIndex(Schema.FORMAT_DIMENSIONS, dimensionIndex))
+
+    typeNameIndex = argmaxEntry(entry,
+                                offset + len(Schema.FORMAT_DIMENSIONS),
+                                offset + len(Schema.FORMAT_DIMENSIONS) + len(Schema.FORMAT_TYPE))
+
+    typeName = getNameForIndex(Schema.FORMAT_TYPE, typeNameIndex)
+
+    return {"dimensions" : str(range(dimensions)), "type" : typeName}
 
 def isLayerEntry(entry):
+    return anyNonZeros(entry, Schema.getLayerEntrySectionBegin(), Schema.getLayerEntrySectionEnd())
 
+def getLayer(entry, layerNames):
+    layerTypeName = getName(entry, Schema.getLayerTypeNameBegin(), Schema.getLayerTypeNameEnd())
+    layerDescription = { "name" : len(layerNames), "type" : layerTypeName }
+
+    if isLayerSizeEntry(entry):
+        layerSize = getName(entry, Schema.getLayerSizeBegin(), Schema.getLayerSizeEnd())
+        layerDescription["size"] = layerSize
+
+    if isLayerStridesEntry(entry):
+        layerStrides = getName(entry, Schema.getLayerStridesBegin(), Schema.getLayerStridesEnd())
+        layerDescription["stride"] = layerStrides
+
+    if isLayerFilterEntry(entry):
+        layerFilter = getName(entry, Schema.getLayerFilterBegin(), Schema.getLayerFilterEnd())
+        layerDescription["filter"] = layerFilter
+
+    layerDescription["inputs"] = []
+
+    for i in range(Schema.getLayerConnectionsBegin(), Schema.getLayerConnectionsEnd()):
+        if entry[Schema.getLayerConnectionsBegin() + i] != 0.0:
+            layerDescription["inputs"].append(layerNames[i])
+
+    return layerDescription
 
 class ModelDescriptionDeserializer:
     def __init__(self, tensorDescription):
@@ -57,7 +98,7 @@ class ModelDescriptionDeserializer:
 
         entryCount = self.tensorDescription.shape[1]
 
-        for i in entryCount:
+        for i in range(entryCount):
             self.addEntry(context, i)
 
         return json.dumps(context)

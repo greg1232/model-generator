@@ -5,12 +5,15 @@ from model.ControllerFactory import ControllerFactory
 from training.ModelTrainer import ModelTrainer
 from performance.PerformanceModel import PerformanceModel
 
+import logging
+
 class ReinforcementLearningSearcher:
     def __init__(self, application, configuration):
         self.application = application
         self.configuration = configuration
-        self.controller  = ControllerFactory.create()
+        self.controller  = ControllerFactory.create(configuration)
         self.modelHistory = ModelHistory()
+        self.logger = logging.getLogger(__name__)
 
     def run(self):
         iterations = self.configuration["iterations"]

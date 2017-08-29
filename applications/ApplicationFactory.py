@@ -1,11 +1,11 @@
 
 from applications.MnistApplication import MnistApplication
 
-class ApplicationFactory
+class ApplicationFactory:
     @staticmethod
-    def create(name):
+    def create(name, configuration):
         if name == "mnist":
-            return MnistApplication()
+            return MnistApplication(configuration)
 
         return None
 
